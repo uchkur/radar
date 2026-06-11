@@ -55,8 +55,16 @@ wait_oracle_healthy() {
       return 0
     fi
     if [ "${running}" != "true" ]; then
-      echo "ОШИБКА: ${name} остановился. Логи:"
-      podman logs --tail 30 "${name}" 2>&1 || true
+      local exit_code
+      exit_code="$(podman inspect -f '{{.State.ExitCode}}' "${name}" 2>/dev/null || echo "?")"
+      echo "ОШИБКА: ${name} остановился (exit ${exit_code}). Логи:"
+      podman logs --tail 40 "${name}" 2>&1 || true
+      if [ "${exit_code}" = "54" ] || [ "${exit_code}" = "187" ]; then
+        echo ""
+        echo "  exit 54/187 → битый volume или мало RAM. Выполни:"
+        echo "    ./scripts/reset-oracle-volumes.sh"
+        echo "    podman machine set --memory 16384 && podman machine start"
+      fi
       return 1
     fi
     if [ $((i % 60)) -eq 0 ] && [ "${i}" -gt 0 ]; then

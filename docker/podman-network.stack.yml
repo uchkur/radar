@@ -9,11 +9,11 @@ networks:
     driver: bridge
 
 x-oracle: &oracle
-  image: gvenzl/oracle-xe:11-slim-faststart   # без распаковки datafiles — быстрее на M2/Rosetta
-  platform: linux/amd64
-  shm_size: "2gb"
-  cpus: 2
-  mem_limit: 3g
+  image: gvenzl/oracle-xe:11-slim
+  platform: linux/amd64   # Oracle XE только amd64; на M2 — Rosetta в Podman VM
+  shm_size: "2gb"         # дефолт 64 MB → ORA-00443 / exit 187
+  cpus: 2                 # иначе Oracle видит все CPU хоста и ломает SGA
+  # mem_limit не задаём: 3g мало для XE + PMON → exit 187 на M2
   environment:
     ORACLE_PASSWORD: test
   healthcheck:

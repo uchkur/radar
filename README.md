@@ -48,7 +48,7 @@ podman run --rm --platform linux/amd64 alpine uname -m   # → x86_64
 ### 1. Podman machine (macOS)
 
 ```bash
-podman machine init --cpus 4 --memory 12288 --disk-size 60   # M2: 12 GB RAM
+podman machine init --cpus 4 --memory 16384 --disk-size 60   # M2: 16 GB RAM (два Oracle XE)
 podman machine start
 podman run --rm hello-world
 ```
@@ -160,37 +160,36 @@ podman rm -f radar-exporter-wdc radar-exporter-cdc radar-prometheus radar-alloy 
 ./scripts/start-stack.sh
 ```
 
-**`oracle-cdc exited (54)` / dependency failed to start**
+**`oracle-wdc exited (187)` / `ORA-00443: PMON did not start`**
 
-Код 54 — Oracle не смог инициализировать БД. Частые причины на M2:
+Код **187** — Oracle не смог запустить фоновый процесс (часто PMON). На M2 типичные причины:
 
-1. Мало `/dev/shm` (в compose уже `shm_size: 2gb`)
-2. Оба Oracle стартовали одновременно (CDC ждёт healthy WDC)
-3. Битый volume после прошлого падения
+1. **Битый volume** после прошлых падений или смены образа (`slim` ↔ `faststart`)
+2. **Мало RAM** в Podman VM (нужно **16 GB** для двух XE)
+3. Раньше стоял `mem_limit: 3g` — слишком мало для XE
 
-Сброс CDC и повторный запуск:
-
-```bash
-podman compose -f docker/podman-network.stack.yml down
-podman volume rm radar_oracle-cdc-volume 2>/dev/null || podman volume rm oracle-cdc-volume 2>/dev/null || true
-./scripts/start-stack.sh
-podman logs -f oracle-cdc   # жди DATABASE IS READY TO USE
-```
-
-Полный сброс обоих Oracle (удалит данные БД):
+Полный сброс и перезапуск:
 
 ```bash
-podman compose -f docker/podman-network.stack.yml down -v
+./scripts/reset-oracle-volumes.sh
+podman machine stop
+podman machine set --memory 16384
+podman machine start
 ./scripts/start-stack.sh
+podman logs -f oracle-wdc
 ```
 
-VM Podman должна иметь **≥ 12 GB RAM** (два XE по ~3 GB + остальной стек).
+**`oracle-cdc exited (54)`**
+
+Код 54 — ошибка инициализации БД. См. `./scripts/reset-oracle-volumes.sh` выше.
+
+VM Podman: **16 GB RAM** рекомендуется на M2 (два Oracle XE + Rosetta + мониторинг).
 
 **Oracle не стартует на M2 (Rosetta)**
 
 ```bash
 podman machine stop && podman machine rm
-podman machine init --cpus 4 --memory 12288 --disk-size 60
+podman machine init --cpus 4 --memory 16384 --disk-size 60
 podman machine start
 ```
 

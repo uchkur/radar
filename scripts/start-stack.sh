@@ -41,6 +41,13 @@ wait_oracle_healthy() {
       exit_code="$(podman inspect -f '{{.State.ExitCode}}' "${name}" 2>/dev/null || echo "?")"
       echo "ОШИБКА: ${name} остановился (exit ${exit_code})."
       podman logs --tail 50 "${name}" 2>&1 || true
+      if podman logs "${name}" 2>&1 | grep -qiE 'ORA-01078|LRM-00109'; then
+        echo ""
+        echo "  ORA-01078/LRM-00109 → битый volume. Выполни:"
+        echo "    ./scripts/reset-oracle-volumes.sh"
+        echo "    ./scripts/oracle-smoke-test.sh"
+        echo "    ./scripts/run-oracle-wdc-foreground.sh"
+      fi
       return 1
     fi
     if [ $((i % 60)) -eq 0 ] && [ "${i}" -gt 0 ]; then

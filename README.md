@@ -184,6 +184,19 @@ lsof -iTCP:9161 -sTCP:LISTEN -P -n
 podman ps -a --format '{{.Names}} {{.Ports}}' | grep 9161
 ```
 
+**`ORA-01078` / `LRM-00109: could not open parameter file`**
+
+Инициализация БД **прервалась** (exit 54, рестарт, нехватка RAM) — volume остался **битым**. Oracle ищет spfile и не находит.
+
+```bash
+./scripts/reset-oracle-volumes.sh      # удалить ВСЕ oracle volumes
+./scripts/oracle-smoke-test.sh         # образ без volume — должен пройти
+./scripts/run-oracle-wdc-foreground.sh # чистая инициализация с volume
+# DATABASE IS READY TO USE → Ctrl+C → ./scripts/start-stack.sh
+```
+
+Не переключай `slim` ↔ `faststart` на одном volume.
+
 **`oracle-wdc exited (54)` на M2**
 
 Код 54 — БД не инициализировалась. Частые причины:

@@ -1,6 +1,5 @@
-# Radar на Apple Silicon (M1/M2/M3): один Oracle 23 Free (arm64).
-# Два инстанса XE/Free на M2 часто падают exit 54 (нехватка RAM при инициализации).
-# WDC/CDC симулируются двумя exporter'ами к одной БД; dg_sim — только на WDC-метриках.
+# Radar на Apple Silicon: один Oracle 23 Free (arm64).
+# ORA-01078 / LRM-00109 → битый volume (прерванная инициализация). См. reset-oracle-volumes.sh
 
 networks:
   radar:
@@ -8,7 +7,7 @@ networks:
 
 services:
   oracle-wdc:
-    image: gvenzl/oracle-free:23-slim-faststart
+    image: gvenzl/oracle-free:23-slim
     container_name: oracle-wdc
     networks: [radar]
     ports:
@@ -25,7 +24,8 @@ services:
       timeout: 60s
       retries: 40
       start_period: 900s
-    restart: unless-stopped
+    # не перезапускать на битом volume — иначе LRM-00109 в цикле
+    restart: on-failure:2
 
   exporter-wdc:
     image: ghcr.io/iamseth/oracledb_exporter:0.6.0
@@ -49,7 +49,6 @@ services:
     networks: [radar]
     command: ["--custom.metrics", "/metrics/custom-metrics-cdc.toml"]
     environment:
-      # M2: тот же Oracle, другой набор метрик (без dg_sim) — логический CDC
       DATA_SOURCE_NAME: oracle://monitor:monitor@oracle-wdc:1521/FREEPDB1
     volumes:
       - ../oracle/custom-metrics-cdc.toml:/metrics/custom-metrics-cdc.toml:ro

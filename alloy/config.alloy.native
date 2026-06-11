@@ -1,0 +1,38 @@
+// Нативный Alloy (brew) с встроенным prometheus.exporter.oracledb
+// Требует Oracle Instant Client на macOS (DYLD_LIBRARY_PATH).
+// Альтернатива без Instant Client: docker/docker-compose.stack.yml (экспортеры в Docker).
+
+prometheus.exporter.oracledb "radar" {
+  custom_metrics = ["./oracle/custom-metrics.toml"]
+
+  database {
+    name              = "wdc"
+    connection_string = "127.0.0.1:1521/XE"
+    username          = "monitor"
+    password          = "monitor"
+    labels            = { datacenter = "WDC" }
+  }
+
+  database {
+    name              = "cdc"
+    connection_string = "127.0.0.1:1522/XE"
+    username          = "monitor"
+    password          = "monitor"
+    labels            = { datacenter = "CDC" }
+  }
+
+  query_timeout = 30
+}
+
+prometheus.scrape "oracle" {
+  targets         = prometheus.exporter.oracledb.radar.targets
+  scrape_interval = "5s"
+  scrape_timeout  = "25s"
+  forward_to      = [prometheus.remote_write.prom.receiver]
+}
+
+prometheus.remote_write "prom" {
+  endpoint {
+    url = "http://127.0.0.1:9090/api/v1/write"
+  }
+}

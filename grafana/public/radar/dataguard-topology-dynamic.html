@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Data Guard topology</title>
+  <style>
+    body { margin: 0; padding: 0; background: transparent; font-family: system-ui, -apple-system, sans-serif; }
+    #wrap { max-width: 560px; margin: 0 auto; }
+    #status { font-size: 11px; color: #64748b; text-align: center; margin-top: 4px; }
+    svg { display: block; width: 100%; height: auto; }
+    [data-clickable] { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="topology"></div>
+    <div id="status">Загрузка…</div>
+  </div>
+  <script>
+(function () {
+  const META_URL = '/public/radar/oracle-meta.json';
+  const REFRESH_MS = 10000;
+
+  function escapeXml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function versionLabel(site, sites) {
+    const s = sites[site];
+    if (!s) return 'Oracle';
+    if (s.version) return 'Oracle ' + s.version;
+    if (s.banner) {
+      const m = s.banner.match(/Release\s+([\d.]+)/i);
+      return m ? 'Oracle ' + m[1] : s.banner.slice(0, 42);
+    }
+    return 'Oracle';
+  }
+
+  function buildSvg(meta) {
+    const primary = meta.primary_site;
+    const standby = meta.standby_site;
+    const sites = meta.sites;
+    const left = primary;
+    const right = standby;
+    const leftVer = escapeXml(versionLabel(left, sites));
+    const rightVer = escapeXml(versionLabel(right, sites));
+    const leftRole = 'PRIMARY';
+    const rightRole = 'STANDBY';
+    const leftFill = '#047857';
+    const rightFill = '#0369a1';
+    const leftStroke = '#059669';
+    const rightStroke = '#0284c7';
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 520 220">
+  <defs>
+    <linearGradient id="primaryCylTop" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#a7f3d0"/><stop offset="100%" style="stop-color:#6ee7b7"/></linearGradient>
+    <linearGradient id="primaryCylBody" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#5eead4"/><stop offset="50%" style="stop-color:#99f6e4"/><stop offset="100%" style="stop-color:#5eead4"/></linearGradient>
+    <linearGradient id="standbyCylTop" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#7dd3fc"/><stop offset="100%" style="stop-color:#38bdf8"/></linearGradient>
+    <linearGradient id="standbyCylBody" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#38bdf8"/><stop offset="50%" style="stop-color:#bae6fd"/><stop offset="100%" style="stop-color:#38bdf8"/></linearGradient>
+    <marker id="arrowhead" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto"><polygon points="0 0, 12 4, 0 8" fill="#0ea5e9"/></marker>
+    <filter id="shadow" x="-20%" y="-10%" width="140%" height="120%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.12"/></filter>
+    <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#059669"/><stop offset="100%" style="stop-color:#0ea5e9"/></linearGradient>
+  </defs>
+
+  <a xlink:href="/d/primary-overview/primary-overview" data-clickable="primary">
+    <g>
+      <rect x="15" y="30" width="155" height="165" fill="transparent"/>
+      <g filter="url(#shadow)" transform="translate(50, 35)">
+        <path d="M 35 25 L 35 95 A 35 12 0 0 0 105 95 L 105 25 Z" fill="url(#primaryCylBody)" stroke="${leftStroke}" stroke-width="2"/>
+        <ellipse cx="70" cy="25" rx="35" ry="12" fill="url(#primaryCylTop)" stroke="${leftStroke}" stroke-width="2"/>
+        <ellipse cx="70" cy="48" rx="32" ry="4" fill="none" stroke="${leftFill}" stroke-width="1.2" opacity="0.7"/>
+        <ellipse cx="70" cy="72" rx="32" ry="4" fill="none" stroke="${leftFill}" stroke-width="1.2" opacity="0.7"/>
+        <ellipse cx="70" cy="96" rx="32" ry="4" fill="none" stroke="${leftFill}" stroke-width="1.2" opacity="0.5"/>
+      </g>
+      <text x="110" y="155" text-anchor="middle" font-size="11" font-weight="600" fill="#065f46">${leftRole}</text>
+      <text x="110" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="${leftFill}">${escapeXml(left)}</text>
+      <text x="110" y="190" text-anchor="middle" font-size="9" fill="#6b7280">${leftVer}</text>
+    </g>
+  </a>
+
+  <a xlink:href="/d/replication-overview/replication-overview" data-clickable="replication">
+    <g>
+      <rect x="170" y="92" width="180" height="36" fill="transparent"/>
+      <path d="M 175 110 L 345 110" stroke="#cbd5e1" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <path d="M 175 110 L 345 110" stroke="url(#arrowGrad)" stroke-width="3" fill="none" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+      <path d="M 175 110 L 332 110" stroke="#0ea5e9" stroke-width="2" fill="none" stroke-dasharray="8 16" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="24" to="0" dur="1.2s" repeatCount="indefinite"/></path>
+      <circle r="5" fill="#059669"><animateMotion dur="2s" repeatCount="indefinite" path="M 175 110 L 332 110"/></circle>
+      <circle r="4" fill="#0ea5e9"><animateMotion dur="2s" repeatCount="indefinite" path="M 175 110 L 332 110" begin="0.5s"/></circle>
+      <circle r="4" fill="#0ea5e9"><animateMotion dur="2s" repeatCount="indefinite" path="M 175 110 L 332 110" begin="1s"/></circle>
+      <text x="260" y="98" text-anchor="middle" font-size="10" fill="#64748b">Data Guard (replication)</text>
+    </g>
+  </a>
+
+  <a xlink:href="/d/standby-overview/standby-overview" data-clickable="standby">
+    <g>
+      <rect x="318" y="30" width="195" height="165" fill="transparent"/>
+      <g filter="url(#shadow)" transform="translate(360, 35)">
+        <path d="M 35 25 L 35 95 A 35 12 0 0 0 105 95 L 105 25 Z" fill="url(#standbyCylBody)" stroke="${rightStroke}" stroke-width="2"/>
+        <ellipse cx="70" cy="25" rx="35" ry="12" fill="url(#standbyCylTop)" stroke="${rightStroke}" stroke-width="2"/>
+        <ellipse cx="70" cy="48" rx="32" ry="4" fill="none" stroke="${rightFill}" stroke-width="1.2" opacity="0.7"/>
+        <ellipse cx="70" cy="72" rx="32" ry="4" fill="none" stroke="${rightFill}" stroke-width="1.2" opacity="0.7"/>
+        <ellipse cx="70" cy="96" rx="32" ry="4" fill="none" stroke="${rightFill}" stroke-width="1.2" opacity="0.5"/>
+      </g>
+      <text x="410" y="155" text-anchor="middle" font-size="11" font-weight="600" fill="#075985">${rightRole}</text>
+      <text x="410" y="172" text-anchor="middle" font-size="14" font-weight="700" fill="${rightFill}">${escapeXml(right)}</text>
+      <text x="410" y="190" text-anchor="middle" font-size="9" fill="#6b7280">${rightVer}</text>
+    </g>
+  </a>
+</svg>`;
+  }
+
+  async function render() {
+    const status = document.getElementById('status');
+    const topo = document.getElementById('topology');
+    try {
+      const r = await fetch(META_URL + '?t=' + Date.now());
+      if (!r.ok) throw new Error(r.status);
+      const meta = await r.json();
+      topo.innerHTML = buildSvg(meta);
+      status.textContent = 'Primary: ' + meta.primary_site + ' → Standby: ' + meta.standby_site
+        + ' · обновлено ' + (meta.updated_at || '');
+    } catch (e) {
+      status.textContent = 'Нет oracle-meta.json — выполни: ./scripts/fetch-oracle-meta.sh и deploy-grafana-public.sh';
+      topo.innerHTML = buildSvg({
+        primary_site: 'WDC', standby_site: 'CDC',
+        sites: { WDC: { version: '?' }, CDC: { version: '?' } }
+      });
+    }
+  }
+
+  render();
+  setInterval(render, REFRESH_MS);
+})();
+  </script>
+</body>
+</html>

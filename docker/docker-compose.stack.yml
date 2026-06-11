@@ -1,0 +1,73 @@
+# Полный стек: Oracle exporters → Alloy → Prometheus → Grafana (на хосте)
+# Oracle XE уже на хосте: WDC :1521, CDC :1522
+#
+# Запуск: docker compose -f docker/docker-compose.stack.yml up -d
+# Остановка: docker compose -f docker/docker-compose.stack.yml down
+
+services:
+  exporter-wdc:
+    image: ghcr.io/iamseth/oracledb_exporter:0.6.0
+    container_name: radar-exporter-wdc
+    command: ["--custom.metrics", "/metrics/custom-metrics.toml"]
+    environment:
+      DATA_SOURCE_NAME: oracle://monitor:monitor@host.docker.internal:1521/XE
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../oracle/custom-metrics.toml:/metrics/custom-metrics.toml:ro
+    ports:
+      - "9161:9161"
+    # WDC: полный custom-metrics.toml (dg_sim)
+    restart: unless-stopped
+
+  exporter-cdc:
+    image: ghcr.io/iamseth/oracledb_exporter:0.6.0
+    container_name: radar-exporter-cdc
+    command: ["--custom.metrics", "/metrics/custom-metrics.toml"]
+    environment:
+      DATA_SOURCE_NAME: oracle://monitor:monitor@host.docker.internal:1522/XE
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../oracle/custom-metrics-cdc.toml:/metrics/custom-metrics.toml:ro
+    ports:
+      - "9162:9161"
+    # CDC: без dg_sim (только version/role)
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: radar-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-remote-write-receiver
+      - --web.enable-lifecycle
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:v1.6.1
+    container_name: radar-alloy
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
+    volumes:
+      - ../alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+    ports:
+      - "12345:12345"
+    depends_on:
+      - prometheus
+      - exporter-wdc
+      - exporter-cdc
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  alloy-data:

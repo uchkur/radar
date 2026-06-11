@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data Guard — тест кликов (drill-down)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 16px; background: #f8fafc; }
+    h1 { font-size: 1.1rem; color: #334155; margin-bottom: 8px; }
+    .hint { font-size: 0.85rem; color: #64748b; margin-bottom: 16px; }
+    .svg-wrap { max-width: 560px; background: #fff; border-radius: 8px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .svg-wrap svg { display: block; width: 100%; height: auto; }
+    .svg-wrap [data-clickable] { cursor: pointer; }
+    .svg-wrap [data-clickable]:hover { opacity: 0.92; }
+    .svg-wrap [data-clickable].highlight { outline: 2px solid #dc2626; outline-offset: 2px; }
+    #drill-panel { margin-top: 16px; max-width: 560px; background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid #0ea5e9; }
+    #drill-panel:empty { display: none; }
+    #drill-panel h2 { font-size: 0.95rem; margin: 0 0 8px; color: #0f172a; }
+    #drill-panel .choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    #drill-panel .choices a, #drill-panel .choices button { display: inline-block; padding: 8px 14px; border-radius: 6px; background: #f1f5f9; color: #334155; text-decoration: none; font-size: 0.9rem; border: 1px solid #e2e8f0; cursor: pointer; }
+    #drill-panel .choices a:hover, #drill-panel .choices button:hover { background: #e2e8f0; }
+    #drill-panel .result { margin-top: 12px; padding: 10px; background: #ecfdf5; border-radius: 6px; font-size: 0.9rem; color: #065f46; }
+    #drill-panel .result a { color: #047857; }
+  </style>
+</head>
+<body>
+  <h1>Data Guard — топология (тест кликов)</h1>
+  <p class="hint">Клик по узлу (Primary, Standby или Data Guard) открывает панель выбора дашборда. Выберите тип проблемы — откроется страница-заглушка дашборда (в реальности будет Grafana).</p>
+
+  <div class="svg-wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 220" width="100%" height="100%">
+      <defs>
+        <linearGradient id="primaryCylTop" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#a7f3d0"/><stop offset="100%" style="stop-color:#6ee7b7"/></linearGradient>
+        <linearGradient id="primaryCylBody" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#5eead4"/><stop offset="50%" style="stop-color:#99f6e4"/><stop offset="100%" style="stop-color:#5eead4"/></linearGradient>
+        <linearGradient id="standbyCylTop" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#7dd3fc"/><stop offset="100%" style="stop-color:#38bdf8"/></linearGradient>
+        <linearGradient id="standbyCylBody" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#38bdf8"/><stop offset="50%" style="stop-color:#bae6fd"/><stop offset="100%" style="stop-color:#38bdf8"/></linearGradient>
+        <marker id="arrowhead" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto"><polygon points="0 0, 12 4, 0 8" fill="#0ea5e9"/></marker>
+        <filter id="shadow" x="-20%" y="-10%" width="140%" height="120%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.12"/></filter>
+        <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#059669"/><stop offset="100%" style="stop-color:#0ea5e9"/></linearGradient>
+      </defs>
+
+      <!-- PRIMARY: clickable area -->
+      <g data-clickable="primary" id="click-primary" onclick="showDrill('primary')">
+        <rect x="15" y="30" width="155" height="165" fill="transparent" />
+        <g filter="url(#shadow)" transform="translate(50, 35)">
+          <path d="M 35 25 L 35 95 A 35 12 0 0 0 105 95 L 105 25 Z" fill="url(#primaryCylBody)" stroke="#059669" stroke-width="2"/>
+          <ellipse cx="70" cy="25" rx="35" ry="12" fill="url(#primaryCylTop)" stroke="#059669" stroke-width="2"/>
+          <ellipse cx="70" cy="48" rx="32" ry="4" fill="none" stroke="#047857" stroke-width="1.2" opacity="0.7"/>
+          <ellipse cx="70" cy="72" rx="32" ry="4" fill="none" stroke="#047857" stroke-width="1.2" opacity="0.7"/>
+          <ellipse cx="70" cy="96" rx="32" ry="4" fill="none" stroke="#047857" stroke-width="1.2" opacity="0.5"/>
+        </g>
+        <text x="110" y="155" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#065f46">PRIMARY</text>
+        <text x="110" y="172" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="700" fill="#047857">DC1</text>
+        <text x="110" y="190" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9" fill="#6b7280">Oracle 19c</text>
+      </g>
+
+      <!-- Replication arrow: clickable -->
+      <g data-clickable="replication" id="click-replication" onclick="showDrill('replication')">
+        <rect x="170" y="92" width="180" height="36" fill="transparent" />
+        <path d="M 175 110 L 345 110" stroke="#cbd5e1" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M 175 110 L 345 110" stroke="url(#arrowGrad)" stroke-width="3" fill="none" stroke-linecap="round" marker-end="url(#arrowhead)"/>
+        <path d="M 175 110 L 332 110" stroke="#0ea5e9" stroke-width="2" fill="none" stroke-dasharray="8 16" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="24" to="0" dur="1.2s" repeatCount="indefinite"/></path>
+        <circle r="5" fill="#059669"><animateMotion dur="2s" repeatCount="indefinite" path="M 175 110 L 332 110"/></circle>
+        <circle r="4" fill="#0ea5e9"><animateMotion dur="2s" repeatCount="indefinite" path="M 175 110 L 332 110" begin="0.5s"/></circle>
+        <circle r="4" fill="#0ea5e9"><animateMotion dur="2s" repeatCount="indefinite" path="M 175 110 L 332 110" begin="1s"/></circle>
+        <text x="260" y="98" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" fill="#64748b">Data Guard (replication)</text>
+      </g>
+
+      <!-- STANDBY: clickable area -->
+      <g data-clickable="standby" id="click-standby" onclick="showDrill('standby')">
+        <rect x="318" y="30" width="195" height="165" fill="transparent" />
+        <g filter="url(#shadow)" transform="translate(360, 35)">
+          <path d="M 35 25 L 35 95 A 35 12 0 0 0 105 95 L 105 25 Z" fill="url(#standbyCylBody)" stroke="#0284c7" stroke-width="2"/>
+          <ellipse cx="70" cy="25" rx="35" ry="12" fill="url(#standbyCylTop)" stroke="#0284c7" stroke-width="2"/>
+          <ellipse cx="70" cy="48" rx="32" ry="4" fill="none" stroke="#0369a1" stroke-width="1.2" opacity="0.7"/>
+          <ellipse cx="70" cy="72" rx="32" ry="4" fill="none" stroke="#0369a1" stroke-width="1.2" opacity="0.7"/>
+          <ellipse cx="70" cy="96" rx="32" ry="4" fill="none" stroke="#0369a1" stroke-width="1.2" opacity="0.5"/>
+        </g>
+        <text x="410" y="155" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="600" fill="#075985">STANDBY</text>
+        <text x="410" y="172" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="700" fill="#0369a1">DC2</text>
+        <text x="410" y="190" text-anchor="middle" font-family="system-ui,sans-serif" font-size="9" fill="#6b7280">Oracle 19c</text>
+      </g>
+    </svg>
+  </div>
+
+  <div id="drill-panel"></div>
+
+  <script>
+    const DRILL_OPTIONS = {
+      primary:   { label: 'Primary',   dashboards: ['Tablespaces', 'Jobs', 'Commit time'] },
+      standby:   { label: 'Standby',   dashboards: ['Tablespaces', 'Jobs', 'Commit time'] },
+      replication: { label: 'Data Guard (replication)', dashboards: ['Lag', 'Destinations', 'Errors'] }
+    };
+
+    function showDrill(node) {
+      const panel = document.getElementById('drill-panel');
+      const opt = DRILL_OPTIONS[node];
+      if (!opt) return;
+      const names = opt.dashboards.map(d => d.toLowerCase().replace(/\s+/g, '-'));
+      panel.innerHTML =
+        '<h2>Узел: ' + opt.label + '</h2>' +
+        '<p style="margin:0;color:#64748b;font-size:0.9rem;">Выберите дашборд для перехода:</p>' +
+        '<div class="choices">' +
+        opt.dashboards.map((d, i) =>
+          '<a href="drill-target.html?node=' + encodeURIComponent(node) + '&dashboard=' + encodeURIComponent(names[i]) + '" target="_blank" rel="noopener">' + d + '</a>'
+        ).join('') +
+        '</div>' +
+        '<div class="result" id="drill-result" style="display:none;"></div>';
+      document.getElementById('drill-result').style.display = 'none';
+    }
+
+    function setResult(msg) {
+      const el = document.getElementById('drill-result');
+      if (el) { el.style.display = 'block'; el.textContent = msg; }
+    }
+  </script>
+</body>
+</html>

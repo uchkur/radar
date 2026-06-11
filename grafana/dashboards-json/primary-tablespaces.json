@@ -1,0 +1,29 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [{ "asDropdown": false, "icon": "dashboard", "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "← Топология", "tooltip": "", "type": "link", "url": "/d/dataguard-overview/dataguard-overview" }],
+  "liveNow": false,
+  "panels": [
+    {
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "content": "## Primary → Tablespaces\n*Drill-down: место на дисках. Здесь будут метрики по tablespace (использование, свободное место).*", "mode": "markdown" },
+      "title": "",
+      "type": "text"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["dataguard", "primary", "tablespaces"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Primary — Tablespaces",
+  "uid": "primary-tablespaces",
+  "version": 1
+}

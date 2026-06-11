@@ -1,0 +1,26 @@
+// Radar: scrape Oracle exporters → Prometheus (remote_write)
+// Экспортеры: exporter-wdc:9161, exporter-cdc:9162 (oracledb_exporter в Docker)
+
+prometheus.remote_write "prom" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+prometheus.scrape "oracle_wdc" {
+  targets = [
+    {"__address__" = "exporter-wdc:9161", "datacenter" = "WDC"},
+  ]
+  scrape_interval = "5s"
+  scrape_timeout  = "4s"
+  forward_to      = [prometheus.remote_write.prom.receiver]
+}
+
+prometheus.scrape "oracle_cdc" {
+  targets = [
+    {"__address__" = "exporter-cdc:9161", "datacenter" = "CDC"},
+  ]
+  scrape_interval = "5s"
+  scrape_timeout  = "4s"
+  forward_to      = [prometheus.remote_write.prom.receiver]
+}

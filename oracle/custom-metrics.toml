@@ -1,0 +1,46 @@
+# WDC target (:1521): dg_sim + версия. CDC — custom-metrics-cdc.toml
+# Metric names: oracledb_<context>_<key>
+
+# monitor.dg_sim только на WDC — кто сейчас Primary
+[[metric]]
+context = "radar_primary_site"
+labels = ["site"]
+metricsdesc = { info = "Primary datacenter from dg_sim" }
+request = "SELECT primary_site AS site, 1 AS info FROM monitor.dg_sim"
+
+[[metric]]
+context = "radar_standby_site"
+labels = ["site"]
+metricsdesc = { info = "Standby datacenter (opposite of primary)" }
+request = '''
+SELECT CASE WHEN primary_site = 'WDC' THEN 'CDC' ELSE 'WDC' END AS site, 1 AS info
+FROM monitor.dg_sim
+'''
+
+# Числовой код primary (1=WDC, 2=CDC) + label site для переменных Grafana
+[[metric]]
+context = "radar_primary_code"
+labels = ["site"]
+metricsdesc = { code = "1=WDC primary, 2=CDC primary" }
+request = '''
+SELECT primary_site AS site,
+  CASE primary_site WHEN 'WDC' THEN 1 WHEN 'CDC' THEN 2 ELSE 0 END AS code
+FROM monitor.dg_sim
+'''
+
+# Версия Oracle — на каждом target (wdc, cdc)
+[[metric]]
+context = "radar_version"
+labels = ["version"]
+metricsdesc = { info = "Oracle release version" }
+request = '''
+SELECT REGEXP_SUBSTR(banner, '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+') AS version, 1 AS info
+FROM v$version WHERE banner LIKE 'Oracle Database%'
+'''
+
+# Роль инстанса (на XE обычно PRIMARY)
+[[metric]]
+context = "radar_db_role"
+labels = ["role"]
+metricsdesc = { info = "V$DATABASE.DATABASE_ROLE" }
+request = "SELECT database_role AS role, 1 AS info FROM v$database"

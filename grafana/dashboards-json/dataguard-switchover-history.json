@@ -1,0 +1,496 @@
+{
+  "title": "Data Guard Switchover History",
+  "uid": "dataguard-switchover-history",
+  "tags": [
+    "dataguard",
+    "radar",
+    "switchover"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "links": [
+    {
+      "title": "Topology (live)",
+      "url": "/d/dataguard-overview/data-guard-overview",
+      "type": "link",
+      "icon": "dashboard"
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "enable": true,
+        "expr": "changes(max by (datacenter) (oracledb_radar_primary_code_code{datacenter=\"WDC\"})[$__range:]) > 0",
+        "iconColor": "orange",
+        "name": "Switchover",
+        "step": "5m",
+        "tagKeys": "",
+        "textFormat": "Primary role changed",
+        "titleFormat": "Switchover"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "content": "## История switchover\nМетрика `oracledb_radar_primary_code_code`: **1** = WDC Primary, **2** = CDC Primary. Оранжевые метки на графиках — момент `changes()` (смена в `monitor.dg_sim`). Диапазон по умолчанию: **7 дней** (настрой вверху).",
+        "mode": "markdown"
+      },
+      "title": "",
+      "type": "text"
+    },
+    {
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 3
+      },
+      "id": 2,
+      "title": "Сейчас Primary",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (datacenter) (oracledb_radar_primary_code_code{datacenter=\"WDC\"})",
+          "legendFormat": "Primary",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "WDC (Primary)"
+                },
+                "2": {
+                  "color": "blue",
+                  "index": 1,
+                  "text": "CDC (Primary)"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 3
+      },
+      "id": 3,
+      "title": "Switchover за период",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(changes(max by (datacenter) (oracledb_radar_primary_code_code{datacenter=\"WDC\"})[$__range:])) or vector(0)",
+          "legendFormat": "Count",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 3
+      },
+      "id": 4,
+      "title": "Последний switchover",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (datacenter) (oracledb_radar_primary_code_code{datacenter=\"WDC\"})",
+          "legendFormat": "Primary",
+          "refId": "A",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "WDC (Primary)"
+                },
+                "2": {
+                  "color": "blue",
+                  "index": 1,
+                  "text": "CDC (Primary)"
+                }
+              }
+            }
+          ],
+          "noValue": "нет смен за период"
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "id": 5,
+      "title": "Кто был Primary (timeline)",
+      "type": "state-timeline",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (datacenter) (oracledb_radar_primary_code_code{datacenter=\"WDC\"})",
+          "legendFormat": "Primary",
+          "refId": "A",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "WDC (Primary)"
+                },
+                "2": {
+                  "color": "blue",
+                  "index": 1,
+                  "text": "CDC (Primary)"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0
+          }
+        }
+      },
+      "options": {
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "always"
+      }
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 6,
+      "title": "Код Primary (ступенчатый график)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (datacenter) (oracledb_radar_primary_code_code{datacenter=\"WDC\"})",
+          "legendFormat": "code",
+          "refId": "A",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "WDC (Primary)"
+                },
+                "2": {
+                  "color": "blue",
+                  "index": 1,
+                  "text": "CDC (Primary)"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "showPoints": "auto"
+          },
+          "min": 0,
+          "max": 3
+        }
+      }
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "id": 7,
+      "title": "Моменты switchover",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "changes(max by (datacenter) (oracledb_radar_primary_code_code{datacenter=\"WDC\"})[$__range:]) > 0",
+          "legendFormat": "event",
+          "refId": "A",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "points",
+            "pointSize": 12,
+            "showPoints": "always"
+          },
+          "color": {
+            "fixedColor": "orange",
+            "mode": "fixed"
+          },
+          "max": 1.2,
+          "min": -0.2
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "hidden"
+        }
+      }
+    },
+    {
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "id": 8,
+      "title": "Журнал смен (значение Primary по scrape)",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (datacenter) (oracledb_radar_primary_code_code{datacenter=\"WDC\"})",
+          "legendFormat": "Primary",
+          "refId": "A",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": false,
+              "Value": false
+            },
+            "renameByName": {
+              "Time": "Время",
+              "Value": "Primary (код)"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "1": {
+                  "color": "green",
+                  "index": 0,
+                  "text": "WDC (Primary)"
+                },
+                "2": {
+                  "color": "blue",
+                  "index": 1,
+                  "text": "CDC (Primary)"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "align": "auto",
+            "displayMode": "color-text"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Время"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              },
+              {
+                "id": "custom.width",
+                "value": 220
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

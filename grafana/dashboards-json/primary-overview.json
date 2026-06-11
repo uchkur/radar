@@ -1,0 +1,50 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "content": "## Primary — обзор\nВыберите дашборд для детализации проблемы.", "mode": "markdown" },
+      "title": "",
+      "type": "text"
+    },
+    {
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 4 },
+      "id": 2,
+      "options": { "content": "### [Tablespaces](/d/primary-tablespaces/primary-tablespaces)\nМесто на дисках, использование tablespace.", "mode": "markdown" },
+      "title": "Tablespaces",
+      "type": "text"
+    },
+    {
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 4 },
+      "id": 3,
+      "options": { "content": "### [Jobs](/d/primary-jobs/primary-jobs)\nСтатус фоновых заданий (DBMS_JOB, Scheduler).", "mode": "markdown" },
+      "title": "Jobs",
+      "type": "text"
+    },
+    {
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 4 },
+      "id": 4,
+      "options": { "content": "### [Commit time](/d/primary-commit-time/primary-commit-time)\nВремя от commit до подтверждения.", "mode": "markdown" },
+      "title": "Commit time",
+      "type": "text"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["dataguard", "primary"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Primary Overview",
+  "uid": "primary-overview",
+  "version": 1
+}

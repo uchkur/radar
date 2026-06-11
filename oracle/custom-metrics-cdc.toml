@@ -1,0 +1,16 @@
+# CDC target: только версия и роль (без dg_sim — источник истины WDC :1521)
+
+[[metric]]
+context = "radar_version"
+labels = ["version"]
+metricsdesc = { info = "Oracle release version" }
+request = '''
+SELECT REGEXP_SUBSTR(banner, '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+') AS version, 1 AS info
+FROM v$version WHERE banner LIKE 'Oracle Database%'
+'''
+
+[[metric]]
+context = "radar_db_role"
+labels = ["role"]
+metricsdesc = { info = "V$DATABASE.DATABASE_ROLE" }
+request = "SELECT database_role AS role, 1 AS info FROM v$database"

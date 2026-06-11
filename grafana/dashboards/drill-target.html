@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Drill-down — дашборд</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 24px; background: #f1f5f9; }
+    .card { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid #0ea5e9; }
+    h1 { font-size: 1.25rem; color: #0f172a; margin: 0 0 8px; }
+    .node { font-weight: 600; color: #047857; }
+    .dash { font-weight: 600; color: #0369a1; }
+    p { color: #475569; margin: 8px 0 0; font-size: 0.95rem; }
+    .back { display: inline-block; margin-top: 16px; padding: 8px 14px; background: #e2e8f0; color: #334155; text-decoration: none; border-radius: 6px; font-size: 0.9rem; }
+    .back:hover { background: #cbd5e1; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Drill-down: <span class="node" id="node">—</span> → <span class="dash" id="dash">—</span></h1>
+    <p id="desc">В Grafana здесь будет открываться соответствующий дашборд (Tablespaces, Jobs, Commit time и т.д.).</p>
+    <a href="dataguard-topology-click-test.html" class="back">← Назад к топологии</a>
+  </div>
+  <script>
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const node = params.get('node') || '—';
+      const dashboard = params.get('dashboard') || '—';
+      const labels = {
+        primary: 'Primary',
+        standby: 'Standby',
+        replication: 'Data Guard (replication)',
+        'commit-time': 'Commit time',
+        tablespaces: 'Tablespaces',
+        jobs: 'Jobs',
+        lag: 'Lag',
+        destinations: 'Destinations',
+        errors: 'Errors'
+      };
+      document.getElementById('node').textContent = labels[node] || node;
+      document.getElementById('dash').textContent = labels[dashboard] || dashboard;
+    })();
+  </script>
+</body>
+</html>

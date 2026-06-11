@@ -1,0 +1,28 @@
+# Локальная симуляция двух датацентров: WDC (Primary) и CDC (Standby).
+# Запуск: docker compose -f docker/oracle-local.yml up -d
+# WDC: localhost:1521  CDC: localhost:1522  пароль: test (system/test@localhost/XE)
+
+services:
+  oracle-wdc:
+    image: gvenzl/oracle-xe:11-slim
+    container_name: oracle-wdc
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: test
+    volumes:
+      - oracle-wdc-volume:/u01/app/oracle/oradata
+
+  oracle-cdc:
+    image: gvenzl/oracle-xe:11-slim
+    container_name: oracle-cdc
+    ports:
+      - "1522:1521"
+    environment:
+      ORACLE_PASSWORD: test
+    volumes:
+      - oracle-cdc-volume:/u01/app/oracle/oradata
+
+volumes:
+  oracle-wdc-volume:
+  oracle-cdc-volume:

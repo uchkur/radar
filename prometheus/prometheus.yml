@@ -1,0 +1,6 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Метрики приходят через remote_write от Alloy (Oracle exporters)
+# Дополнительно Alloy UI (опционально): :12345

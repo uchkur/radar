@@ -1,0 +1,19 @@
+{
+  "updated_at": "2026-05-22T10:32:35Z",
+  "primary_site": "CDC",
+  "standby_site": "WDC",
+  "sites": {
+    "WDC": {
+      "site": "WDC",
+      "version": "11.2.0.2.0",
+      "banner": "Oracle Database 11g Express Edition Release 11.2.0.2.0 - 64bit Production",
+      "database_role": "PRIMARY"
+    },
+    "CDC": {
+      "site": "CDC",
+      "version": "11.2.0.2.0",
+      "banner": "Oracle Database 11g Express Edition Release 11.2.0.2.0 - 64bit Production",
+      "database_role": "PRIMARY"
+    }
+  }
+}

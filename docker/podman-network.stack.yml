@@ -11,6 +11,7 @@ networks:
 services:
   oracle-wdc:
     image: gvenzl/oracle-xe:11-slim
+    platform: linux/amd64   # Oracle XE нет для arm64 — нужно на Apple Silicon (M1/M2/M3)
     container_name: oracle-wdc
     networks: [radar]
     ports:
@@ -29,6 +30,7 @@ services:
 
   oracle-cdc:
     image: gvenzl/oracle-xe:11-slim
+    platform: linux/amd64
     container_name: oracle-cdc
     networks: [radar]
     ports:

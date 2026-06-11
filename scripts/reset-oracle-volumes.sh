@@ -5,13 +5,10 @@ cd "${REPO_ROOT}"
 
 COMPOSE="${COMPOSE:-podman compose}"
 
-echo "==> Остановка стека и удаление volumes..."
+echo "==> Остановка стека, порты и volumes..."
+"${REPO_ROOT}/scripts/free-ports.sh" || true
 ${COMPOSE} -f docker/podman-network.stack.yml down -v --remove-orphans 2>/dev/null || true
 ${COMPOSE} -f docker/podman-network.stack.m2.yml down -v --remove-orphans 2>/dev/null || true
-
-for c in oracle-wdc oracle-cdc radar-exporter-wdc radar-exporter-cdc radar-prometheus radar-alloy; do
-  podman rm -f "${c}" 2>/dev/null || true
-done
 
 while read -r vol; do
   [ -n "${vol}" ] && podman volume rm "${vol}" 2>/dev/null || true

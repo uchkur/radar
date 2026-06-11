@@ -170,14 +170,20 @@ radar/
 
 ## Устранение неполадок
 
-**`bind: address already in use` на :9161**
+**`rootlessport listen tcp :9161: bind: address already in use`**
 
-Старые контейнеры ещё держат порт. Останови стек:
+Пересоздание сети **не освобождает порт**. Его держит старый контейнер или зависший `rootlessport`/`gvproxy` в Podman machine.
 
 ```bash
-podman compose -f docker/podman-network.stack.yml down
-podman rm -f radar-exporter-wdc radar-exporter-cdc radar-prometheus radar-alloy oracle-wdc oracle-cdc
+./scripts/free-ports.sh          # остановка контейнеров + перезапуск machine при необходимости
 ./scripts/start-stack.sh
+
+# если не помогло — принудительно:
+RESTART_MACHINE=yes ./scripts/free-ports.sh
+
+# кто занял порт:
+lsof -iTCP:9161 -sTCP:LISTEN -P -n
+podman ps -a --format '{{.Names}} {{.Ports}}' | grep 9161
 ```
 
 **`ORA-00443: background process "PMON" did not start`**

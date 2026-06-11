@@ -5,9 +5,17 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "${REPO_ROOT}"
 
 COMPOSE="${COMPOSE:-podman compose}"
-STACK_FILE="docker/podman-network.stack.yml"
+STACK_FILE="${STACK_FILE:-$("${REPO_ROOT}/scripts/stack-file.sh")}"
 
 section() { echo ""; echo "=== $* ==="; }
+
+section "Stack file"
+echo "${STACK_FILE}"
+if [ "$(basename "${STACK_FILE}")" = "podman-network.stack.m2.yml" ]; then
+  echo "Apple Silicon → Oracle 23 Free arm64 (избегает ORA-00443 от XE 11 + Rosetta)"
+else
+  echo "Intel/Linux → Oracle XE 11 amd64"
+fi
 
 section "Podman machine"
 podman machine list 2>&1 || echo "podman machine: недоступно"
@@ -47,7 +55,7 @@ podman volume ls 2>&1 | grep -E 'oracle|radar|VOLUME' || echo "(volumes нет)"
 
 section "Образ Oracle"
 podman images --format 'table {{.Repository}}:{{.Tag}}\t{{.Size}}' 2>&1 \
-  | grep -E 'REPOSITORY|oracle-xe' || echo "(образ не скачан — podman pull gvenzl/oracle-xe:11-slim)"
+  | grep -E 'REPOSITORY|oracle-' || echo "(образ не скачан)"
 
 section "Порты на хосте"
 for port in 1521 1522 9090 9161; do

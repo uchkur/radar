@@ -34,14 +34,12 @@
 
 ### Apple Silicon (M1 / M2 / M3)
 
-- **Grafana, Python** — нативный `arm64` (`/opt/homebrew`).
-- **Oracle XE 11** — только `amd64`; в compose указано `platform: linux/amd64` (Rosetta в Podman VM).
-- **Prometheus, Alloy, exporter** — `arm64`.
-- VM Podman: **≥ 12 GB RAM**; первый старт Oracle **до 20 минут** (`waiting` в compose — нормально).
+На M2 **не используй Oracle XE 11** — под Rosetta в Podman падает с **`ORA-00443` (PMON did not start)**.
 
-```bash
-podman run --rm --platform linux/amd64 alpine uname -m   # → x86_64
-```
+`start-stack.sh` автоматически выбирает `docker/podman-network.stack.m2.yml`:
+- **Oracle Database 23 Free** (`gvenzl/oracle-free:23-slim`) — нативный **arm64**
+- PDB: **FREEPDB1** (вместо XE)
+- Intel Mac / Linux → `podman-network.stack.yml` (Oracle XE 11)
 
 ## Быстрый старт
 
@@ -64,13 +62,13 @@ chmod +x scripts/start-stack.sh
 ./scripts/start-stack.sh
 ```
 
-Скрипт поднимает `docker/podman-network.stack.yml` и **останавливает предыдущий стек**, если порты `9161`/`9162`/`9090` заняты (типичная ошибка `bind: address already in use`).
+Скрипт сам выбирает compose (M2 → `.m2.yml`) и освобождает занятые порты.
 
-Ручной запуск:
+Ручной запуск на **M2**:
 
 ```bash
-podman compose -f docker/podman-network.stack.yml down
-podman compose -f docker/podman-network.stack.yml up -d
+./scripts/reset-oracle-volumes.sh   # после ORA-00443 обязательно
+podman compose -f docker/podman-network.stack.m2.yml up -d
 ```
 
 Ожидание Oracle (на M2 до 20 мин, `start-stack.sh` показывает прогресс):
@@ -98,23 +96,27 @@ podman inspect -f '{{.State.Health.Status}}' oracle-wdc   # starting → healthy
 
 ### 3. Инициализация Oracle
 
+**M2 (Oracle 23 Free, PDB FREEPDB1):**
+
 ```bash
-podman exec -i oracle-wdc sqlplus -s system/test@localhost/XE <<'SQL'
+podman exec -i oracle-wdc sqlplus -s system/test@//localhost:1521/FREEPDB1 <<'SQL'
 CREATE USER monitor IDENTIFIED BY monitor;
 GRANT CONNECT, RESOURCE TO monitor;
 SQL
 
-podman exec -i oracle-wdc sqlplus -s monitor/monitor@localhost/XE <<'SQL'
+podman exec -i oracle-wdc sqlplus -s monitor/monitor@//localhost:1521/FREEPDB1 <<'SQL'
 CREATE TABLE dg_sim (primary_site VARCHAR2(3) NOT NULL);
 INSERT INTO dg_sim VALUES ('WDC');
 COMMIT;
 SQL
 
-podman exec -i oracle-cdc sqlplus -s system/test@localhost/XE <<'SQL'
+podman exec -i oracle-cdc sqlplus -s system/test@//localhost:1521/FREEPDB1 <<'SQL'
 CREATE USER monitor IDENTIFIED BY monitor;
 GRANT CONNECT, RESOURCE TO monitor;
 SQL
 ```
+
+**Intel (Oracle XE 11):** замени `@//localhost:1521/FREEPDB1` на `@localhost/XE`.
 
 ### 4. Grafana
 
@@ -131,7 +133,9 @@ brew services restart grafana
 ### 5. Switchover
 
 ```bash
-podman exec -i oracle-wdc sqlplus -s monitor/monitor@localhost/XE <<'SQL'
+# M2:
+podman exec -i oracle-wdc sqlplus -s monitor/monitor@//localhost:1521/FREEPDB1 <<'SQL'
+# Intel: @localhost/XE
 UPDATE dg_sim SET primary_site = 'CDC';
 COMMIT;
 SQL
@@ -176,38 +180,19 @@ podman rm -f radar-exporter-wdc radar-exporter-cdc radar-prometheus radar-alloy 
 ./scripts/start-stack.sh
 ```
 
-**`oracle-wdc exited (187)` / `ORA-00443: PMON did not start`**
+**`ORA-00443: background process "PMON" did not start`**
 
-Код **187** — Oracle не смог запустить фоновый процесс (часто PMON). На M2 типичные причины:
+На **M2** это ожидаемо для **Oracle XE 11 + Rosetta** — PMON не стартует под эмуляцией.
 
-1. **Битый volume** после прошлых падений или смены образа (`slim` ↔ `faststart`)
-2. **Мало RAM** в Podman VM (нужно **16 GB** для двух XE)
-3. Раньше стоял `mem_limit: 3g` — слишком мало для XE
-
-Полный сброс и перезапуск:
+Решение — M2-стек с Oracle 23 Free (arm64):
 
 ```bash
 ./scripts/reset-oracle-volumes.sh
-podman machine stop
-podman machine set --memory 16384
-podman machine start
-./scripts/start-stack.sh
-podman logs -f oracle-wdc
+./scripts/start-stack.sh          # подхватит podman-network.stack.m2.yml
+./scripts/run-oracle-wdc-foreground.sh   # отладка в терминале
 ```
 
-**`oracle-cdc exited (54)`**
-
-Код 54 — ошибка инициализации БД. См. `./scripts/reset-oracle-volumes.sh` выше.
-
-VM Podman: **16 GB RAM** рекомендуется на M2 (два Oracle XE + Rosetta + мониторинг).
-
-**Oracle не стартует на M2 (Rosetta)**
-
-```bash
-podman machine stop && podman machine rm
-podman machine init --cpus 4 --memory 16384 --disk-size 60
-podman machine start
-```
+Не смешивай volumes от XE 11 (`/u01/...`) и Free 23 (`/opt/oracle/...`) — всегда `reset-oracle-volumes.sh` при смене стека.
 
 ## Нативный Alloy (опционально)
 

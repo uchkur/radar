@@ -37,7 +37,7 @@
 - **Grafana, Python** — нативный `arm64` (`/opt/homebrew`).
 - **Oracle XE 11** — только `amd64`; в compose указано `platform: linux/amd64` (Rosetta в Podman VM).
 - **Prometheus, Alloy, exporter** — `arm64`.
-- VM Podman: **≥ 12 GB RAM**; первый старт Oracle **10–20 минут**.
+- VM Podman: **≥ 12 GB RAM**; первый старт Oracle **до 20 минут** (`waiting` в compose — нормально).
 
 ```bash
 podman run --rm --platform linux/amd64 alpine uname -m   # → x86_64
@@ -73,10 +73,11 @@ podman compose -f docker/podman-network.stack.yml down
 podman compose -f docker/podman-network.stack.yml up -d
 ```
 
-Ожидание Oracle:
+Ожидание Oracle (на M2 до 20 мин, `start-stack.sh` показывает прогресс):
 
 ```bash
 podman logs -f oracle-wdc   # DATABASE IS READY TO USE
+podman inspect -f '{{.State.Health.Status}}' oracle-wdc   # starting → healthy
 ```
 
 ### 3. Инициализация Oracle

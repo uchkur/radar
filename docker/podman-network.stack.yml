@@ -8,54 +8,46 @@ networks:
   radar:
     driver: bridge
 
+x-oracle: &oracle
+  image: gvenzl/oracle-xe:11-slim-faststart   # без распаковки datafiles — быстрее на M2/Rosetta
+  platform: linux/amd64
+  shm_size: "2gb"
+  cpus: 2
+  mem_limit: 3g
+  environment:
+    ORACLE_PASSWORD: test
+  healthcheck:
+    test: ["CMD", "healthcheck.sh"]
+    interval: 15s
+    timeout: 60s
+    retries: 40
+    start_period: 1200s   # M2: первая инициализация до ~20 мин — не считать fail раньше
+
 services:
   oracle-wdc:
-    image: gvenzl/oracle-xe:11-slim
-    platform: linux/amd64   # Oracle XE нет для arm64 — нужно на Apple Silicon (M1/M2/M3)
+    <<: *oracle
     container_name: oracle-wdc
     networks: [radar]
     ports:
       - "1521:1521"
-    environment:
-      ORACLE_PASSWORD: test
     volumes:
       - oracle-wdc-volume:/u01/app/oracle/oradata
-    shm_size: "2gb"          # Oracle 11 XE требует ≥1 GB /dev/shm (дефолт 64 MB → exit 54)
-    cpus: 2                  # иначе Oracle видит все CPU хоста и ломает SGA на XE
-    mem_limit: 3g
-    healthcheck:
-      test: ["CMD", "healthcheck.sh"]
-      interval: 30s
-      timeout: 10s
-      retries: 15
-      start_period: 300s     # M2 + Rosetta: первая инициализация долгая
     restart: unless-stopped
 
   oracle-cdc:
-    image: gvenzl/oracle-xe:11-slim
-    platform: linux/amd64
+    <<: *oracle
     container_name: oracle-cdc
     networks: [radar]
     ports:
       - "1522:1521"
-    environment:
-      ORACLE_PASSWORD: test
     volumes:
       - oracle-cdc-volume:/u01/app/oracle/oradata
-    shm_size: "2gb"
-    cpus: 2
-    mem_limit: 3g
     depends_on:
       oracle-wdc:
-        condition: service_healthy   # не инициализировать оба XE одновременно
-    healthcheck:
-      test: ["CMD", "healthcheck.sh"]
-      interval: 30s
-      timeout: 10s
-      retries: 15
-      start_period: 300s
+        condition: service_healthy
     restart: unless-stopped
 
+  # Экспортеры стартуют после запуска контейнера Oracle (не ждут healthy — иначе весь стек «waiting»)
   exporter-wdc:
     image: ghcr.io/iamseth/oracledb_exporter:0.6.0
     container_name: radar-exporter-wdc
@@ -69,7 +61,7 @@ services:
       - "9161:9161"
     depends_on:
       oracle-wdc:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
 
   exporter-cdc:
@@ -85,7 +77,7 @@ services:
       - "9162:9161"
     depends_on:
       oracle-cdc:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
 
   prometheus:

@@ -76,9 +76,25 @@ podman compose -f docker/podman-network.stack.yml up -d
 Ожидание Oracle (на M2 до 20 мин, `start-stack.sh` показывает прогресс):
 
 ```bash
-podman logs -f oracle-wdc   # DATABASE IS READY TO USE
+# сначала проверь, что контейнер есть:
+podman ps -a | grep oracle-wdc
+
+# логи (без -f — сразу видно, есть ли что-то):
+podman logs --tail 50 oracle-wdc
+podman compose -f docker/podman-network.stack.yml logs --tail 50 oracle-wdc
+
 podman inspect -f '{{.State.Health.Status}}' oracle-wdc   # starting → healthy
 ```
+
+**`podman logs -f oracle-wdc` ничего не выводит**
+
+1. Контейнер **не существует** — `podman ps -a` пустой → запусти `./scripts/start-stack.sh`
+2. Контейнер **ещё молчит** (распаковка БД) — `-f` ждёт первой строки; смотри без follow или в foreground:
+   ```bash
+   ./scripts/diagnose-stack.sh
+   ./scripts/run-oracle-wdc-foreground.sh   # весь вывод Oracle в терминал
+   ```
+3. Podman machine **не запущена** → `podman machine start`
 
 ### 3. Инициализация Oracle
 

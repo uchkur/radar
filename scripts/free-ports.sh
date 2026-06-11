@@ -7,6 +7,7 @@ cd "${REPO_ROOT}"
 
 COMPOSE="${COMPOSE:-podman compose}"
 PORTS=(9161 9162 9090 12345 1521 1522)
+# 1522 не используется на M2 (один Oracle), но чистим на случай старого стека
 RESTART_MACHINE="${RESTART_MACHINE:-auto}"   # auto | yes | no
 
 port_busy() {

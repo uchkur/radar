@@ -1,47 +1,30 @@
-# Radar на Apple Silicon (M1/M2/M3): Oracle Database 23 Free — нативный arm64.
-# Oracle XE 11 под Rosetta даёт ORA-00443 (PMON) — на M2 используй этот файл.
-#
-# Выбирается автоматически в scripts/start-stack.sh на Darwin arm64.
+# Radar на Apple Silicon (M1/M2/M3): один Oracle 23 Free (arm64).
+# Два инстанса XE/Free на M2 часто падают exit 54 (нехватка RAM при инициализации).
+# WDC/CDC симулируются двумя exporter'ами к одной БД; dg_sim — только на WDC-метриках.
 
 networks:
   radar:
     driver: bridge
 
-x-oracle: &oracle
-  image: gvenzl/oracle-free:23-slim
-  shm_size: "2gb"
-  cpus: 2
-  environment:
-    ORACLE_PASSWORD: test
-  healthcheck:
-    test: ["CMD", "healthcheck.sh"]
-    interval: 15s
-    timeout: 60s
-    retries: 30
-    start_period: 600s
-
 services:
   oracle-wdc:
-    <<: *oracle
+    image: gvenzl/oracle-free:23-slim-faststart
     container_name: oracle-wdc
     networks: [radar]
     ports:
       - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: test
     volumes:
       - oracle-wdc-volume:/opt/oracle/oradata
-    restart: unless-stopped
-
-  oracle-cdc:
-    <<: *oracle
-    container_name: oracle-cdc
-    networks: [radar]
-    ports:
-      - "1522:1521"
-    volumes:
-      - oracle-cdc-volume:/opt/oracle/oradata
-    depends_on:
-      oracle-wdc:
-        condition: service_healthy
+    shm_size: "2gb"
+    cpus: 2
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 15s
+      timeout: 60s
+      retries: 40
+      start_period: 900s
     restart: unless-stopped
 
   exporter-wdc:
@@ -64,15 +47,16 @@ services:
     image: ghcr.io/iamseth/oracledb_exporter:0.6.0
     container_name: radar-exporter-cdc
     networks: [radar]
-    command: ["--custom.metrics", "/metrics/custom-metrics.toml"]
+    command: ["--custom.metrics", "/metrics/custom-metrics-cdc.toml"]
     environment:
-      DATA_SOURCE_NAME: oracle://monitor:monitor@oracle-cdc:1521/FREEPDB1
+      # M2: тот же Oracle, другой набор метрик (без dg_sim) — логический CDC
+      DATA_SOURCE_NAME: oracle://monitor:monitor@oracle-wdc:1521/FREEPDB1
     volumes:
-      - ../oracle/custom-metrics-cdc.toml:/metrics/custom-metrics.toml:ro
+      - ../oracle/custom-metrics-cdc.toml:/metrics/custom-metrics-cdc.toml:ro
     ports:
       - "9162:9161"
     depends_on:
-      oracle-cdc:
+      oracle-wdc:
         condition: service_started
     restart: unless-stopped
 
@@ -113,6 +97,5 @@ services:
 
 volumes:
   oracle-wdc-volume:
-  oracle-cdc-volume:
   prometheus-data:
   alloy-data:

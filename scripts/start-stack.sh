@@ -55,7 +55,11 @@ wait_oracle_healthy() {
 }
 
 wait_oracle_healthy oracle-wdc
-wait_oracle_healthy oracle-cdc
+if podman container exists oracle-cdc 2>/dev/null; then
+  wait_oracle_healthy oracle-cdc
+else
+  echo "==> M2: один Oracle (oracle-cdc контейнера нет — оба exporter → oracle-wdc)"
+fi
 
 echo "==> Ожидание Prometheus..."
 for i in $(seq 1 60); do

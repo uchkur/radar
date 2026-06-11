@@ -37,9 +37,10 @@
 На M2 **не используй Oracle XE 11** — под Rosetta в Podman падает с **`ORA-00443` (PMON did not start)**.
 
 `start-stack.sh` автоматически выбирает `docker/podman-network.stack.m2.yml`:
-- **Oracle Database 23 Free** (`gvenzl/oracle-free:23-slim`) — нативный **arm64**
-- PDB: **FREEPDB1** (вместо XE)
-- Intel Mac / Linux → `podman-network.stack.yml` (Oracle XE 11)
+- **один** Oracle Database 23 Free (`23-slim-faststart`) — нативный **arm64**
+- PDB: **FREEPDB1**; оба exporter (WDC/CDC) подключаются к `oracle-wdc`
+- два инстанса Oracle на M2 → **exit 54** (не хватает RAM)
+- Intel Mac / Linux → два Oracle XE 11 в `podman-network.stack.yml`
 
 ## Быстрый старт
 
@@ -110,13 +111,10 @@ INSERT INTO dg_sim VALUES ('WDC');
 COMMIT;
 SQL
 
-podman exec -i oracle-cdc sqlplus -s system/test@//localhost:1521/FREEPDB1 <<'SQL'
-CREATE USER monitor IDENTIFIED BY monitor;
-GRANT CONNECT, RESOURCE TO monitor;
-SQL
+# M2: один Oracle — CDC-инициализация не нужна (exporter-cdc → тот же oracle-wdc)
 ```
 
-**Intel (Oracle XE 11):** замени `@//localhost:1521/FREEPDB1` на `@localhost/XE`.
+**Intel (Oracle XE 11):** два контейнера, подключение `@localhost/XE`; на CDC тоже `CREATE USER monitor`.
 
 ### 4. Grafana
 
@@ -186,19 +184,23 @@ lsof -iTCP:9161 -sTCP:LISTEN -P -n
 podman ps -a --format '{{.Names}} {{.Ports}}' | grep 9161
 ```
 
-**`ORA-00443: background process "PMON" did not start`**
+**`oracle-wdc exited (54)` на M2**
 
-На **M2** это ожидаемо для **Oracle XE 11 + Rosetta** — PMON не стартует под эмуляцией.
-
-Решение — M2-стек с Oracle 23 Free (arm64):
+Код 54 — БД не инициализировалась. Частые причины:
+1. **Битый volume** после XE 11 или двух инстансов Free
+2. **Два Oracle** на M2 — не хватает RAM (M2-стек использует **один** oracle-wdc)
+3. Мало памяти Podman VM
 
 ```bash
+./scripts/free-ports.sh
 ./scripts/reset-oracle-volumes.sh
-./scripts/start-stack.sh          # подхватит podman-network.stack.m2.yml
-./scripts/run-oracle-wdc-foreground.sh   # отладка в терминале
+podman machine set --memory 16384 && podman machine start
+./scripts/run-oracle-wdc-foreground.sh   # смотри вывод в терминале
+# после DATABASE IS READY TO USE:
+./scripts/start-stack.sh
 ```
 
-Не смешивай volumes от XE 11 (`/u01/...`) и Free 23 (`/opt/oracle/...`) — всегда `reset-oracle-volumes.sh` при смене стека.
+**`ORA-00443` (PMON)** — Oracle XE 11 + Rosetta; на M2 используй только `.m2.yml` (Oracle 23 Free arm64).
 
 ## Нативный Alloy (опционально)
 

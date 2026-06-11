@@ -16,5 +16,6 @@ done < <(podman volume ls -q 2>/dev/null | grep -E 'oracle|radar' || true)
 
 echo "==> Готово. Запусти: ./scripts/start-stack.sh"
 if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
-  echo "    M2: будет использован Oracle 23 Free (arm64), не XE 11"
+  echo "    M2: один Oracle 23 Free (arm64), оба exporter → oracle-wdc"
+  echo "    Обязательно после exit 54/187 от старого XE 11 или двух инстансов Free"
 fi

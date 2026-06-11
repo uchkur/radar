@@ -1,0 +1,119 @@
+# Полный стек Radar в одной Podman-сети (macOS / Linux).
+# Oracle WDC/CDC и мониторинг общаются по DNS-именам контейнеров — без host.docker.internal.
+#
+# Запуск: podman compose -f docker/podman-network.stack.yml up -d
+# Остановка: podman compose -f docker/podman-network.stack.yml down
+
+networks:
+  radar:
+    driver: bridge
+
+services:
+  oracle-wdc:
+    image: gvenzl/oracle-xe:11-slim
+    container_name: oracle-wdc
+    networks: [radar]
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: test
+    volumes:
+      - oracle-wdc-volume:/u01/app/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+
+  oracle-cdc:
+    image: gvenzl/oracle-xe:11-slim
+    container_name: oracle-cdc
+    networks: [radar]
+    ports:
+      - "1522:1521"
+    environment:
+      ORACLE_PASSWORD: test
+    volumes:
+      - oracle-cdc-volume:/u01/app/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+
+  exporter-wdc:
+    image: ghcr.io/iamseth/oracledb_exporter:0.6.0
+    container_name: radar-exporter-wdc
+    networks: [radar]
+    command: ["--custom.metrics", "/metrics/custom-metrics.toml"]
+    environment:
+      DATA_SOURCE_NAME: oracle://monitor:monitor@oracle-wdc:1521/XE
+    volumes:
+      - ../oracle/custom-metrics.toml:/metrics/custom-metrics.toml:ro
+    ports:
+      - "9161:9161"
+    depends_on:
+      oracle-wdc:
+        condition: service_healthy
+    restart: unless-stopped
+
+  exporter-cdc:
+    image: ghcr.io/iamseth/oracledb_exporter:0.6.0
+    container_name: radar-exporter-cdc
+    networks: [radar]
+    command: ["--custom.metrics", "/metrics/custom-metrics.toml"]
+    environment:
+      DATA_SOURCE_NAME: oracle://monitor:monitor@oracle-cdc:1521/XE
+    volumes:
+      - ../oracle/custom-metrics-cdc.toml:/metrics/custom-metrics.toml:ro
+    ports:
+      - "9162:9161"
+    depends_on:
+      oracle-cdc:
+        condition: service_healthy
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: radar-prometheus
+    networks: [radar]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-remote-write-receiver
+      - --web.enable-lifecycle
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:v1.6.1
+    container_name: radar-alloy
+    networks: [radar]
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
+    volumes:
+      - ../alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+    ports:
+      - "12345:12345"
+    depends_on:
+      - prometheus
+      - exporter-wdc
+      - exporter-cdc
+    restart: unless-stopped
+
+volumes:
+  oracle-wdc-volume:
+  oracle-cdc-volume:
+  prometheus-data:
+  alloy-data:

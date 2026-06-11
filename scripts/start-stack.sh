@@ -62,3 +62,8 @@ echo "Exporters:   http://localhost:9161/metrics  http://localhost:9162/metrics"
 echo ""
 echo "Grafana: brew services start grafana && ./scripts/setup-grafana-prometheus.sh"
 echo "Остановка: podman compose -f ${STACK_FILE} down"
+echo ""
+if ! podman container exists oracle-cdc 2>/dev/null || [ "$(podman inspect -f '{{.State.Running}}' oracle-cdc 2>/dev/null)" != "true" ]; then
+  echo "ВНИМАНИЕ: oracle-cdc не запущен. Логи: podman logs oracle-cdc"
+  echo "  exit 54 → сброс volume: podman compose -f ${STACK_FILE} down && podman volume rm radar_oracle-cdc-volume"
+fi

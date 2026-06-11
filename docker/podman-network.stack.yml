@@ -20,12 +20,15 @@ services:
       ORACLE_PASSWORD: test
     volumes:
       - oracle-wdc-volume:/u01/app/oracle/oradata
+    shm_size: "2gb"          # Oracle 11 XE требует ≥1 GB /dev/shm (дефолт 64 MB → exit 54)
+    cpus: 2                  # иначе Oracle видит все CPU хоста и ломает SGA на XE
+    mem_limit: 3g
     healthcheck:
       test: ["CMD", "healthcheck.sh"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 15
+      start_period: 300s     # M2 + Rosetta: первая инициализация долгая
     restart: unless-stopped
 
   oracle-cdc:
@@ -39,12 +42,18 @@ services:
       ORACLE_PASSWORD: test
     volumes:
       - oracle-cdc-volume:/u01/app/oracle/oradata
+    shm_size: "2gb"
+    cpus: 2
+    mem_limit: 3g
+    depends_on:
+      oracle-wdc:
+        condition: service_healthy   # не инициализировать оба XE одновременно
     healthcheck:
       test: ["CMD", "healthcheck.sh"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 120s
+      retries: 15
+      start_period: 300s
     restart: unless-stopped
 
   exporter-wdc:

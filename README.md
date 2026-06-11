@@ -159,9 +159,33 @@ podman rm -f radar-exporter-wdc radar-exporter-cdc radar-prometheus radar-alloy 
 ./scripts/start-stack.sh
 ```
 
-**Oracle не стартует на M2**
+**`oracle-cdc exited (54)` / dependency failed to start**
 
-Проверь `platform: linux/amd64` в compose и Rosetta:
+Код 54 — Oracle не смог инициализировать БД. Частые причины на M2:
+
+1. Мало `/dev/shm` (в compose уже `shm_size: 2gb`)
+2. Оба Oracle стартовали одновременно (CDC ждёт healthy WDC)
+3. Битый volume после прошлого падения
+
+Сброс CDC и повторный запуск:
+
+```bash
+podman compose -f docker/podman-network.stack.yml down
+podman volume rm radar_oracle-cdc-volume 2>/dev/null || podman volume rm oracle-cdc-volume 2>/dev/null || true
+./scripts/start-stack.sh
+podman logs -f oracle-cdc   # жди DATABASE IS READY TO USE
+```
+
+Полный сброс обоих Oracle (удалит данные БД):
+
+```bash
+podman compose -f docker/podman-network.stack.yml down -v
+./scripts/start-stack.sh
+```
+
+VM Podman должна иметь **≥ 12 GB RAM** (два XE по ~3 GB + остальной стек).
+
+**Oracle не стартует на M2 (Rosetta)**
 
 ```bash
 podman machine stop && podman machine rm

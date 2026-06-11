@@ -1,5 +1,5 @@
 # Полный стек Radar в одной Podman-сети (macOS / Linux).
-# Oracle WDC/CDC и мониторинг общаются по DNS-именам контейнеров — без host.docker.internal.
+# Oracle WDC/CDC и мониторинг общаются по DNS-именам контейнеров в сети radar.
 #
 # Запуск: podman compose -f docker/podman-network.stack.yml up -d
 # Остановка: podman compose -f docker/podman-network.stack.yml down

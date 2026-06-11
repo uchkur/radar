@@ -1,5 +1,5 @@
 // Radar: scrape Oracle exporters → Prometheus (remote_write)
-// Экспортеры: exporter-wdc:9161, exporter-cdc:9162 (oracledb_exporter в Docker)
+// Экспортеры: exporter-wdc:9161, exporter-cdc:9162 (oracledb_exporter в Podman)
 
 prometheus.remote_write "prom" {
   endpoint {

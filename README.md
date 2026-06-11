@@ -6,76 +6,121 @@
 
 Доступ к Oracle — только SQL. Локально симулируются два датацентра и switchover через `monitor.dg_sim`.
 
-## Архитектура (текущий стек)
+## Архитектура
 
 ```
 ┌─────────────┐     ┌──────────────────────┐     ┌─────────┐     ┌──────────┐
 │ Oracle WDC  │────►│ oracledb_exporter    │     │         │     │          │
-│  :1521      │     │  (Docker :9161)      │────►│  Alloy  │────►│Prometheus│──► Grafana
-└─────────────┘     └──────────────────────┘     │ :12345  │     │  :9090   │    (дашборд
-┌─────────────┐     ┌──────────────────────┐     │         │     │          │     Data Guard
-│ Oracle CDC  │────►│ oracledb_exporter    │────►│remote_  │     └──────────┘     Overview)
-│  :1522      │     │  (Docker :9162)      │     │ write   │
-└─────────────┘     └──────────────────────┘     └─────────┘
+│ oracle-wdc  │     │  radar-exporter-wdc  │────►│  Alloy  │────►│Prometheus│──► Grafana (brew)
+│  :1521      │     │  :9161               │     │ :12345  │     │  :9090   │
+└─────────────┘     └──────────────────────┘     │         │     └──────────┘
+┌─────────────┐     ┌──────────────────────┐     │ radar   │
+│ Oracle CDC  │────►│ oracledb_exporter    │────►│ network │
+│ oracle-cdc  │     │  radar-exporter-cdc  │     └─────────┘
+│  :1522      │     │  :9162               │
+└─────────────┘     └──────────────────────┘
 ```
 
-- **oracledb_exporter** (образ `ghcr.io/iamseth/oracledb_exporter:0.6.0`) — SQL → метрики Prometheus, custom metrics в `oracle/custom-metrics.toml`.
-- **Alloy** — scrape экспортеров + `remote_write` в Prometheus (отдельный процесс oracledb_exporter не нужен на хосте).
-- **Grafana** — Overview (топология, live из Prometheus каждые 5s) + Switchover History.
+Все сервисы в одной Podman-сети `radar`. Контейнеры общаются по DNS-именам (`oracle-wdc:1521`, `exporter-wdc:9161`).
 
-> **oracle-meta-server** (Python) — устаревший dev-обход; для работы используй стек ниже.
+## Требования
+
+| Компонент | Установка |
+|-----------|-----------|
+| Podman | `brew install podman` |
+| Compose | `podman compose version` (встроен в Podman 4+) |
+| Grafana | `brew install grafana` |
+| Python 3 | для provisioning дашбордов |
+
+### Apple Silicon (M1 / M2 / M3)
+
+- **Grafana, Python** — нативный `arm64` (`/opt/homebrew`).
+- **Oracle XE 11** — только `amd64`; в compose указано `platform: linux/amd64` (Rosetta в Podman VM).
+- **Prometheus, Alloy, exporter** — `arm64`.
+- VM Podman: **≥ 12 GB RAM**; первый старт Oracle **10–20 минут**.
+
+```bash
+podman run --rm --platform linux/amd64 alpine uname -m   # → x86_64
+```
 
 ## Быстрый старт
 
-### 1. Oracle (WDC + CDC)
+### 1. Podman machine (macOS)
 
 ```bash
-docker compose -f docker/oracle-local.yml up -d   # если ещё не подняты
-# WDC: monitor.dg_sim на compassionate_jepsen / oracle-wdc :1521
-# CDC: выполни oracle/sql/02_monitor_cdc.sql при необходимости
+podman machine init --cpus 4 --memory 12288 --disk-size 60   # M2: 12 GB RAM
+podman machine start
+podman run --rm hello-world
 ```
 
-### 2. Мониторинг (Docker)
+После перезагрузки Mac: `podman machine start`.
+
+### 2. Запуск стека
 
 ```bash
+git clone https://github.com/uchkur/radar.git
+cd radar
+chmod +x scripts/start-stack.sh
 ./scripts/start-stack.sh
 ```
 
-Поднимает: `radar-exporter-wdc`, `radar-exporter-cdc`, `radar-alloy`, `radar-prometheus`.
+Скрипт поднимает `docker/podman-network.stack.yml` и **останавливает предыдущий стек**, если порты `9161`/`9162`/`9090` заняты (типичная ошибка `bind: address already in use`).
 
-- Prometheus: http://localhost:9090  
-- Alloy UI: http://localhost:12345  
-- Метрики экспортеров: http://localhost:9161/metrics , http://localhost:9162/metrics  
+Ручной запуск:
 
-### 3. Grafana
+```bash
+podman compose -f docker/podman-network.stack.yml down
+podman compose -f docker/podman-network.stack.yml up -d
+```
+
+Ожидание Oracle:
+
+```bash
+podman logs -f oracle-wdc   # DATABASE IS READY TO USE
+```
+
+### 3. Инициализация Oracle
+
+```bash
+podman exec -i oracle-wdc sqlplus -s system/test@localhost/XE <<'SQL'
+CREATE USER monitor IDENTIFIED BY monitor;
+GRANT CONNECT, RESOURCE TO monitor;
+SQL
+
+podman exec -i oracle-wdc sqlplus -s monitor/monitor@localhost/XE <<'SQL'
+CREATE TABLE dg_sim (primary_site VARCHAR2(3) NOT NULL);
+INSERT INTO dg_sim VALUES ('WDC');
+COMMIT;
+SQL
+
+podman exec -i oracle-cdc sqlplus -s system/test@localhost/XE <<'SQL'
+CREATE USER monitor IDENTIFIED BY monitor;
+GRANT CONNECT, RESOURCE TO monitor;
+SQL
+```
+
+### 4. Grafana
 
 ```bash
 brew services start grafana
+export GRAFANA_ETC=/opt/homebrew/etc/grafana   # Apple Silicon (M2)
 ./scripts/setup-grafana-prometheus.sh
-brew services restart grafana   # подхватить provisioning
+brew services restart grafana
 ```
 
-Дашборд: http://localhost:3000/d/dataguard-overview/data-guard-overview
+- Overview: http://localhost:3000/d/dataguard-overview/data-guard-overview
+- Switchover History: http://localhost:3000/d/dataguard-switchover-history/data-guard-switchover-history
 
-### 4. История switchover
-
-```bash
-./scripts/build-switchover-dashboard.py   # или ./scripts/setup-grafana-prometheus.sh
-```
-
-Дашборд **Data Guard Switchover History** — timeline кто был Primary, оранжевые метки в момент `changes()`, счётчик смен за выбранный период (по умолчанию 7 дней).
-
-### 5. Switchover (автообновление ~5 с)
+### 5. Switchover
 
 ```bash
-# Только WDC (compassionate_jepsen / :1521) — там monitor.dg_sim
-docker exec -i compassionate_jepsen sqlplus -s monitor/monitor@localhost/XE <<'SQL'
+podman exec -i oracle-wdc sqlplus -s monitor/monitor@localhost/XE <<'SQL'
 UPDATE dg_sim SET primary_site = 'CDC';
 COMMIT;
 SQL
 ```
 
-Меняй `primary_site` на `WDC` / `CDC` — дашборд обновится после следующего scrape (~5–15 с). CDC (:1522) **не** хранит dg_sim для топологии.
+Вернуть WDC: `primary_site = 'WDC'`.
 
 ## Метрики (custom)
 
@@ -91,19 +136,37 @@ SQL
 
 ```
 radar/
-├── alloy/config.alloy              # Alloy: scrape → Prometheus
-├── alloy/config.alloy.native       # вариант с встроенным exporter (нужен Oracle Instant Client)
-├── docker/docker-compose.stack.yml
-├── docker/oracle-local.yml
+├── alloy/config.alloy
+├── docker/podman-network.stack.yml   # полный стек в сети radar
+├── docker/oracle-local.yml           # только Oracle (опционально)
 ├── oracle/custom-metrics.toml
-├── oracle/sql/
 ├── prometheus/prometheus.yml
-├── grafana/provisioning/datasources/
-├── grafana/dashboards-json/dataguard-overview.json
+├── grafana/
 └── scripts/
     ├── start-stack.sh
-    ├── setup-grafana-prometheus.sh
-    └── build-grafana-dashboard.py
+    └── setup-grafana-prometheus.sh
+```
+
+## Устранение неполадок
+
+**`bind: address already in use` на :9161**
+
+Старые контейнеры ещё держат порт. Останови стек:
+
+```bash
+podman compose -f docker/podman-network.stack.yml down
+podman rm -f radar-exporter-wdc radar-exporter-cdc radar-prometheus radar-alloy oracle-wdc oracle-cdc
+./scripts/start-stack.sh
+```
+
+**Oracle не стартует на M2**
+
+Проверь `platform: linux/amd64` в compose и Rosetta:
+
+```bash
+podman machine stop && podman machine rm
+podman machine init --cpus 4 --memory 12288 --disk-size 60
+podman machine start
 ```
 
 ## Нативный Alloy (опционально)
@@ -115,4 +178,4 @@ brew install alloy prometheus
 alloy run alloy/config.alloy.native
 ```
 
-Иначе используй Docker-стек из `docker-compose.stack.yml`.
+Иначе используй Podman-стек: `./scripts/start-stack.sh`.

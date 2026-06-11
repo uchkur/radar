@@ -4,14 +4,15 @@ import re
 import subprocess
 from datetime import datetime, timezone
 
-WDC = os.environ.get("WDC_CONTAINER", "compassionate_jepsen")
+RUNTIME = os.environ.get("CONTAINER_RUNTIME", "podman")
+WDC = os.environ.get("WDC_CONTAINER", "oracle-wdc")
 CDC = os.environ.get("CDC_CONTAINER", "oracle-cdc")
 PASS = os.environ.get("ORACLE_PASSWORD", "test")
 
 
 def run_sql(container: str, user: str, password: str, sql: str) -> str:
     r = subprocess.run(
-        ["docker", "exec", "-i", container, "sqlplus", "-s", f"{user}/{password}@localhost/XE"],
+        [RUNTIME, "exec", "-i", container, "sqlplus", "-s", f"{user}/{password}@localhost/XE"],
         input=sql.strip() + "\n",
         capture_output=True,
         text=True,

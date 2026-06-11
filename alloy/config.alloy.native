@@ -1,6 +1,6 @@
 // Нативный Alloy (brew) с встроенным prometheus.exporter.oracledb
 // Требует Oracle Instant Client на macOS (DYLD_LIBRARY_PATH).
-// Альтернатива без Instant Client: docker/docker-compose.stack.yml (экспортеры в Docker).
+// Альтернатива без Instant Client: ./scripts/start-stack.sh (экспортеры в Podman).
 
 prometheus.exporter.oracledb "radar" {
   custom_metrics = ["./oracle/custom-metrics.toml"]

@@ -1,5 +1,6 @@
 # Локальная симуляция двух датацентров: WDC (Primary) и CDC (Standby).
-# Запуск: docker compose -f docker/oracle-local.yml up -d
+# Запуск: podman compose -f docker/oracle-local.yml up -d
+# Полный стек (Oracle + мониторинг): ./scripts/start-stack.sh
 # WDC: localhost:1521  CDC: localhost:1522  пароль: test (system/test@localhost/XE)
 
 services:

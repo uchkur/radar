@@ -6,7 +6,7 @@
 
 ### Стек
 
-- Oracle WDC/CDC (Docker) + `monitor.dg_sim` для switchover
+- Oracle WDC/CDC (Podman) + `monitor.dg_sim` для switchover
 - oracledb_exporter → Grafana Alloy → Prometheus → Grafana (brew)
 
 ### Дашборды
